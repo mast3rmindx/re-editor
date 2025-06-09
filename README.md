@@ -120,6 +120,37 @@ CodeEditor(
 );
 ```
 
+### Efficient Text Manipulation
+
+When programmatically adding or inserting large amounts of text or many individual lines, repeatedly modifying `controller.text` (e.g., `controller.text += "new content";`) can be inefficient. This is because each assignment to `controller.text` may involve processing the entire document content.
+
+For more performant programmatic text manipulation, `CodeLineEditingController` provides the following methods:
+
+*   **`void addLine(String text)`**: Appends a new line with the given text to the end of the document.
+    ```dart
+    // Efficiently add multiple lines
+    for (int i = 0; i < 100; i++) {
+      controller.addLine("This is line $i");
+    }
+    ```
+
+*   **`void insertLine(int lineIndex, String text)`**: Inserts a new line with the given `text` at the specified `lineIndex`. Existing lines from `lineIndex` onwards are shifted down.
+    ```dart
+    // Insert a new line at the beginning of the document
+    controller.insertLine(0, "This is the new first line.");
+    ```
+
+*   **`void insertText(String text, CodeLinePosition position)`**: Inserts the given `text` at the specified `CodeLinePosition` (which includes a line index and an offset within that line). The `text` can contain newline characters (`\n`), which will result in multiple lines being inserted.
+    ```dart
+    // Insert text at the start of the first line
+    controller.insertText("Preamble: ", const CodeLinePosition(index: 0, offset: 0));
+
+    // Insert multi-line text into the document
+    controller.insertText("First line.\nSecond line.", const CodeLinePosition(index: 1, offset: 5));
+    ```
+
+These methods operate more directly on the editor's internal representation of lines and are recommended for bulk updates or frequent programmatic insertions. They are also integrated with the undo/redo history.
+
 ### Find and Replace
 
 `Re-Editor` implements search and replace control logic, but does not provide a default UI. Developers need to write the UI of the search panel according to the actual situation of their own projects, and use the `findBuilder` attribute to set up their own search and replace UI.
@@ -141,6 +172,19 @@ CodeEditor(
   toolbarController: _MyToolbarController(),
 );
 ```
+
+**Using Native Mobile Context Menus**
+
+For mobile platforms (iOS and Android), you can opt to use the operating system's native context menu (for copy, paste, select all, etc.) instead of a custom-built toolbar. This can provide a more familiar experience for users. To enable this, set the `useNativeContextMenu` property of the `CodeEditor` to `true`:
+
+```dart
+CodeEditor(
+  controller: yourController,
+  useNativeContextMenu: true,
+);
+```
+
+When `useNativeContextMenu` is `true`, the custom `toolbarController` (if provided) will not be shown for mobile selection events, allowing the native menu to appear. For desktop, the behavior of `toolbarController` remains unchanged.
 
 ### Shortcuts
 
