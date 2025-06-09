@@ -77,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
     'Auto Complete': AutoCompleteEditor(),
     'Large Text': LargeTextEditor(),
     'Native Context Menu': NativeContextMenuExamplePage(),
+    'Efficient Append Demo': EfficientAppendExamplePage(),
   };
 
   int _index = 0;
@@ -138,6 +139,103 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         )
       ),
+    );
+  }
+}
+
+class EfficientAppendExamplePage extends StatefulWidget {
+  const EfficientAppendExamplePage({super.key});
+
+  @override
+  State<EfficientAppendExamplePage> createState() => _EfficientAppendExamplePageState();
+}
+
+class _EfficientAppendExamplePageState extends State<EfficientAppendExamplePage> {
+  late final CodeLineEditingController _controller;
+  String _inefficientTime = '';
+  String _efficientTime = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = CodeLineEditingController.fromText('Initial text.\n');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _appendInefficient() {
+    final stopwatch = Stopwatch()..start();
+    for (int i = 0; i < 100; i++) {
+      _controller.text += 'Line $i\n'; // This is inefficient
+    }
+    stopwatch.stop();
+    setState(() {
+      _inefficientTime = 'Inefficient: ${stopwatch.elapsedMilliseconds}ms';
+    });
+    // ignore: avoid_print
+    print('Inefficient append took: ${stopwatch.elapsedMilliseconds}ms');
+  }
+
+  void _appendEfficient() {
+    final stopwatch = Stopwatch()..start();
+    for (int i = 0; i < 100; i++) {
+      _controller.addLine('Line $i'); // Uses the new efficient method
+    }
+    stopwatch.stop();
+    setState(() {
+      _efficientTime = 'Efficient (addLine): ${stopwatch.elapsedMilliseconds}ms';
+    });
+    // ignore: avoid_print
+    print('Efficient append (addLine) took: ${stopwatch.elapsedMilliseconds}ms');
+  }
+
+  void _clearText() {
+    _controller.text = '';
+    setState(() {
+      _inefficientTime = '';
+      _efficientTime = '';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: CodeEditor(
+            controller: _controller,
+            wordWrap: true,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(_inefficientTime, style: const TextStyle(color: Colors.red)),
+        Text(_efficientTime, style: const TextStyle(color: Colors.green)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          alignment: WrapAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: _appendInefficient,
+              child: const Text('Append 100 lines (inefficient)'),
+            ),
+            ElevatedButton(
+              onPressed: _appendEfficient,
+              child: const Text('Append 100 lines (addLine)'),
+            ),
+            ElevatedButton(
+              onPressed: _clearText,
+              child: const Text('Clear'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 }

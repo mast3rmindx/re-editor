@@ -4691,4 +4691,261 @@ void main() {
     });
 
   });
+
+  group('Efficient Insertion Methods', () {
+    group('insertText()', () {
+      test('insert text into an empty document', () {
+        final controller = CodeLineEditingController.fromText('');
+        const initialSelection = CodeLineSelection.collapsed(index: 0, offset: 0);
+        controller.selection = initialSelection;
+
+        controller.insertText('Hello', const CodeLinePosition(index: 0, offset: 0));
+        expect(controller.text, 'Hello');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 5));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, '');
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Hello');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 5));
+      });
+
+      test('insert text at the beginning of a line', () {
+        final controller = CodeLineEditingController.fromText('World');
+        const initialSelection = CodeLineSelection.collapsed(index: 0, offset: 0);
+        controller.selection = initialSelection;
+
+        controller.insertText('Hello ', const CodeLinePosition(index: 0, offset: 0));
+        expect(controller.text, 'Hello World');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 6));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'World');
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Hello World');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 6));
+      });
+
+      test('insert text in middle of a line', () {
+        final controller = CodeLineEditingController.fromText('Hello World');
+        // Store the selection *before* calling insertText
+        const selectionBeforeInsert = CodeLineSelection.collapsed(index: 0, offset: 6);
+        controller.selection = selectionBeforeInsert;
+
+        controller.insertText('Beautiful ', const CodeLinePosition(index: 0, offset: 6));
+        expect(controller.text, 'Hello Beautiful World');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 16)); // After "Beautiful "
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'Hello World');
+        // Selection should revert to what it was *before* the insertText call
+        expect(controller.selection, selectionBeforeInsert);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Hello Beautiful World');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 16));
+      });
+
+      test('insert text at the end of a line', () {
+        final controller = CodeLineEditingController.fromText('Hello');
+        const initialSelection = CodeLineSelection.collapsed(index: 0, offset: 5);
+        controller.selection = initialSelection;
+
+        controller.insertText(' World', const CodeLinePosition(index: 0, offset: 5));
+        expect(controller.text, 'Hello World');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 11));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'Hello');
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Hello World');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 11));
+      });
+
+      test('insert multi-line text', () {
+        final controller = CodeLineEditingController.fromText('Line A\nLine D');
+        const initialSelection = CodeLineSelection.collapsed(index: 1, offset: 0); // Before "Line D"
+        controller.selection = initialSelection;
+
+        controller.insertText('Line B\nLine C\n', const CodeLinePosition(index: 1, offset: 0));
+        expect(controller.text, 'Line A\nLine B\nLine C\nLine D');
+        expect(controller.codeLines.length, 4);
+        expect(controller.codeLines[0].text, 'Line A');
+        expect(controller.codeLines[1].text, 'Line B');
+        expect(controller.codeLines[2].text, 'Line C');
+        expect(controller.codeLines[3].text, 'Line D');
+        // Selection will be at the end of the inserted text, which is start of "Line D" effectively
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 3, offset: 0));
+
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'Line A\nLine D');
+        expect(controller.codeLines.length, 2);
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Line A\nLine B\nLine C\nLine D');
+        expect(controller.codeLines.length, 4);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 3, offset: 0));
+      });
+    });
+
+    group('addLine()', () {
+      test('add line to an empty document', () {
+        final controller = CodeLineEditingController.fromText('');
+        const initialSelection = CodeLineSelection.collapsed(index: 0, offset: 0);
+        controller.selection = initialSelection;
+
+
+        controller.addLine('First line');
+        expect(controller.text, '\nFirst line'); // Initial empty line + new line
+        expect(controller.codeLines.length, 2);
+        expect(controller.codeLines[0].text, '');
+        expect(controller.codeLines[1].text, 'First line');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, '');
+        expect(controller.codeLines.length, 1);
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, '\nFirst line');
+        expect(controller.codeLines.length, 2);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+      });
+
+      test('add multiple lines', () {
+        final controller = CodeLineEditingController.fromText('Initial Line');
+        const initialSelection = CodeLineSelection.collapsed(index: 0, offset: 12);
+        controller.selection = initialSelection;
+
+        controller.addLine('Line 2');
+        expect(controller.text, 'Initial Line\nLine 2');
+        expect(controller.codeLines.length, 2);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+
+        controller.addLine('Line 3');
+        expect(controller.text, 'Initial Line\nLine 2\nLine 3');
+        expect(controller.codeLines.length, 3);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 2, offset: 0));
+
+        expect(controller.canUndo, true);
+        controller.undo(); // Undo "Line 3"
+        expect(controller.text, 'Initial Line\nLine 2');
+        expect(controller.codeLines.length, 2);
+        // Selection after undoing addLine should be where it was before addLine("Line 3")
+        // which was the start of "Line 2"
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+
+
+        expect(controller.canUndo, true);
+        controller.undo(); // Undo "Line 2"
+        expect(controller.text, 'Initial Line');
+        expect(controller.codeLines.length, 1);
+        expect(controller.selection, initialSelection); // Original selection
+
+        expect(controller.canRedo, true);
+        controller.redo(); // Redo "Line 2"
+        expect(controller.text, 'Initial Line\nLine 2');
+        expect(controller.codeLines.length, 2);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+
+        expect(controller.canRedo, true);
+        controller.redo(); // Redo "Line 3"
+        expect(controller.text, 'Initial Line\nLine 2\nLine 3');
+        expect(controller.codeLines.length, 3);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 2, offset: 0));
+      });
+    });
+
+    group('insertLine()', () {
+      test('insert at the beginning', () {
+        final controller = CodeLineEditingController.fromText('Line B\nLine C');
+        const initialSelection = CodeLineSelection.collapsed(index: 0, offset: 0);
+        controller.selection = initialSelection;
+
+        controller.insertLine(0, 'Line A');
+        expect(controller.text, 'Line A\nLine B\nLine C');
+        expect(controller.codeLines.length, 3);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 0));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'Line B\nLine C');
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Line A\nLine B\nLine C');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 0, offset: 0));
+      });
+
+      test('insert in the middle', () {
+        final controller = CodeLineEditingController.fromText('Line A\nLine C');
+        const initialSelection = CodeLineSelection.collapsed(index: 1, offset: 0);
+        controller.selection = initialSelection; // Cursor at start of Line C
+
+        controller.insertLine(1, 'Line B');
+        expect(controller.text, 'Line A\nLine B\nLine C');
+        expect(controller.codeLines.length, 3);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'Line A\nLine C');
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Line A\nLine B\nLine C');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 1, offset: 0));
+      });
+
+      test('insert at the end (equivalent to addLine)', () {
+        final controller = CodeLineEditingController.fromText('Line A\nLine B');
+        const initialSelection = CodeLineSelection.collapsed(index: 1, offset: 6); // Cursor at end of Line B
+        controller.selection = initialSelection;
+
+        controller.insertLine(2, 'Line C'); // Index 2 is after last line (index 1)
+        expect(controller.text, 'Line A\nLine B\nLine C');
+        expect(controller.codeLines.length, 3);
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 2, offset: 0));
+
+        expect(controller.canUndo, true);
+        controller.undo();
+        expect(controller.text, 'Line A\nLine B');
+        expect(controller.selection, initialSelection);
+
+        expect(controller.canRedo, true);
+        controller.redo();
+        expect(controller.text, 'Line A\nLine B\nLine C');
+        expect(controller.selection, const CodeLineSelection.collapsed(index: 2, offset: 0));
+      });
+
+      test('throws RangeError for invalid index', () {
+        final controller = CodeLineEditingController.fromText('Line A');
+        expect(() => controller.insertLine(-1, 'Invalid'), throwsRangeError);
+        expect(() => controller.insertLine(2, 'Invalid'), throwsRangeError); // length is 1, so valid indices are 0, 1
+      });
+    });
+  });
 }

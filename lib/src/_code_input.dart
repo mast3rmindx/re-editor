@@ -79,6 +79,9 @@ class _CodeInputController extends ChangeNotifier implements DeltaTextInputClien
 
   CodeLineEditingValue get value => _controller.value;
 
+  // Getter for testing purposes
+  Brightness get debugKeyboardAppearance => _keyboardAppearance;
+
   set codeLines(CodeLines value) {
     _controller.codeLines = value.isEmpty ? _kInitialCodeLines : value;
   }
@@ -434,11 +437,24 @@ class _CodeInputController extends ChangeNotifier implements DeltaTextInputClien
 
   void _openInputConnection() {
     if (!_hasInputConnection) {
+      // Ensure 'dart:ui' is imported, aliased as 'ui' if it's not already.
+      // It's usually imported at the top of the main library file lib/src/re_editor.dart.
+      final int? viewId = ui.PlatformDispatcher.instance.implicitView?.viewId ??
+          View.maybeOf(_editorKey!.currentContext!)?.viewId;
+
+      if (viewId == null) {
+        // Or throw Exception('Cannot open input connection without a valid viewId.');
+        // Using print for now to avoid outright crashing if context is unexpectedly null during this call.
+        print('Error: RE-EDITOR - Could not obtain a valid viewId for TextInputConnection. Input may not work.');
+        return;
+      }
+
       final TextInputConnection connection = TextInput.attach(this,
         TextInputConfiguration(
+          viewId: viewId, // New
           enableDeltaModel: true,
           inputAction: TextInputAction.newline,
-          keyboardAppearance: _keyboardAppearance,
+          keyboardAppearance: _keyboardAppearance, // Existing
         ),
       );
       _remoteEditingValue = _buildTextEditingValue();

@@ -373,6 +373,18 @@ abstract class CodeLineEditingController extends ValueNotifier<CodeLineEditingVa
     required TextSpan textSpan,
     required TextStyle style,
   });
+
+  /// Inserts text at the given position.
+  /// The selection will be collapsed at the end of the inserted text.
+  void insertText(String text, CodeLinePosition position);
+
+  /// Inserts a new line with the given text at the specified line index.
+  /// The selection will be collapsed at the beginning of the new line.
+  void insertLine(int lineIndex, String text);
+
+  /// Adds a new line with the given text at the end of the document.
+  /// The selection will be collapsed at the beginning of the new line.
+  void addLine(String text);
 }
 
 /// A delegate controller for an editor field.
@@ -405,6 +417,57 @@ class CodeLine {
     return other is CodeLine
         && other.text == text
         && listEquals(other.chunks, chunks);
+  }
+
+  @override
+  void insertText(String text, CodeLinePosition position) {
+    runRevocableOp(() {
+      final CodeLineSelection insertionPoint = CodeLineSelection.fromPosition(position: position);
+      _replaceRange(text, insertionPoint);
+    });
+  }
+
+  @override
+  void addLine(String text) {
+    runRevocableOp(() {
+      final List<CodeLine> linesList = codeLines.toList();
+      linesList.add(CodeLine(text));
+      final newCodeLines = CodeLines.of(linesList);
+      value = value.copyWith(
+        codeLines: newCodeLines,
+        selection: CodeLineSelection.collapsed(index: newCodeLines.length - 1, offset: 0)
+      );
+    });
+  }
+
+  @override
+  void insertLine(int lineIndex, String text) {
+    final int currentLength = codeLines.length;
+    if (lineIndex < 0 || lineIndex > currentLength) {
+      throw RangeError.range(lineIndex, 0, currentLength, 'lineIndex', 'Invalid line index');
+    }
+    if (lineIndex == currentLength) {
+      // Effectively the same as addLine if inserting at the very end
+      runRevocableOp(() {
+        final List<CodeLine> linesList = codeLines.toList();
+        linesList.add(CodeLine(text));
+        final newCodeLines = CodeLines.of(linesList);
+        value = value.copyWith(
+          codeLines: newCodeLines,
+          selection: CodeLineSelection.collapsed(index: newCodeLines.length - 1, offset: 0)
+        );
+      });
+    } else {
+      runRevocableOp(() {
+        final List<CodeLine> linesList = codeLines.toList();
+        linesList.insert(lineIndex, CodeLine(text));
+        final newCodeLines = CodeLines.of(linesList);
+        value = value.copyWith(
+          codeLines: newCodeLines,
+          selection: CodeLineSelection.collapsed(index: lineIndex, offset: 0)
+        );
+      });
+    }
   }
 
   @override
