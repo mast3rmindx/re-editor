@@ -8,6 +8,7 @@ class _CodeInputController extends ChangeNotifier implements DeltaTextInputClien
   bool _autocompleteSymbols;
   bool _updateCausedByFloatingCursor;
   late Offset _floatingCursorStartingOffset;
+  Brightness _keyboardAppearance;
 
   TextInputConnection? _textInputConnection;
   TextEditingValue? _remoteEditingValue;
@@ -23,12 +24,14 @@ class _CodeInputController extends ChangeNotifier implements DeltaTextInputClien
     required FocusNode focusNode,
     required bool readOnly,
     required bool autocompleteSymbols,
+    required Brightness keyboardAppearance,
   }) : _controller = controller,
     _floatingCursorController = floatingCursorController,
     _focusNode = focusNode,
     _readOnly = readOnly,
     _updateCausedByFloatingCursor = false,
-    _autocompleteSymbols = autocompleteSymbols {
+    _autocompleteSymbols = autocompleteSymbols,
+    _keyboardAppearance = keyboardAppearance {
     _controller.addListener(_onCodeEditingChanged);
     _focusNode.addListener(_onFocusChanged);
   }
@@ -432,9 +435,10 @@ class _CodeInputController extends ChangeNotifier implements DeltaTextInputClien
   void _openInputConnection() {
     if (!_hasInputConnection) {
       final TextInputConnection connection = TextInput.attach(this,
-        const TextInputConfiguration(
+        TextInputConfiguration(
           enableDeltaModel: true,
-          inputAction: TextInputAction.newline
+          inputAction: TextInputAction.newline,
+          keyboardAppearance: _keyboardAppearance,
         ),
       );
       _remoteEditingValue = _buildTextEditingValue();
@@ -453,6 +457,17 @@ class _CodeInputController extends ChangeNotifier implements DeltaTextInputClien
       _textInputConnection!.close();
     }
     _textInputConnection = null;
+  }
+
+  void updateKeyboardAppearance(Brightness newAppearance) {
+    if (_keyboardAppearance == newAppearance) {
+      return;
+    }
+    _keyboardAppearance = newAppearance;
+    if (_hasInputConnection) {
+      _closeInputConnectionIfNeeded();
+      _openInputConnection();
+    }
   }
 
   TextEditingValue _buildTextEditingValue() {

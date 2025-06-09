@@ -338,6 +338,7 @@ class _CodeEditorState extends State<CodeEditor> {
   final ValueNotifier<bool> _effectiveToolbarVisibility = ValueNotifier<bool>(true);
 
   late _SelectionOverlayController _selectionOverlayController;
+  late Brightness _storedBrightness;
 
   @override
   void initState() {
@@ -350,12 +351,16 @@ class _CodeEditorState extends State<CodeEditor> {
 
     _floatingCursorController = _CodeFloatingCursorController();
 
+    final Brightness currentBrightness = Theme.of(context).brightness;
+    _storedBrightness = currentBrightness;
+
     _inputController = _CodeInputController(
       controller: _editingController,
       floatingCursorController: _floatingCursorController,
       focusNode: _focusNode,
       readOnly: widget.readOnly ?? false,
       autocompleteSymbols: widget.autocompleteSymbols ?? true,
+      keyboardAppearance: currentBrightness,
     );
     _inputController.bindEditor(_editorKey);
 
@@ -430,7 +435,18 @@ class _CodeEditorState extends State<CodeEditor> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final Brightness newBrightness = Theme.of(context).brightness;
+    if (newBrightness != _storedBrightness) {
+      _storedBrightness = newBrightness;
+      _inputController.updateKeyboardAppearance(newBrightness);
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant CodeEditor oldWidget) {
+    super.didUpdateWidget(oldWidget); // It's conventional to call super first.
     if (oldWidget.focusNode != widget.focusNode) {
       if (oldWidget.focusNode == null) {
         _focusNode.dispose();

@@ -10,8 +10,24 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+
+  static _MyAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void changeTheme(ThemeMode themeMode) {
+    setState(() {
+      _themeMode = themeMode;
+    });
+  }
 
   // This widget is the root of your application.
   @override
@@ -23,6 +39,13 @@ class MyApp extends StatelessWidget {
           primary: Color.fromARGB(255, 255, 140, 0),
         )
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.blue, // Or any other distinct color
+        )
+      ),
+      themeMode: _themeMode,
       home: const MyHomePage(title: 'Re-Editor Demo Page'),
     );
   }
@@ -64,6 +87,19 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.brightness_4), // Icon for theme toggle
+            onPressed: () {
+              final currentThemeMode = MyApp.of(context)?._themeMode ?? ThemeMode.system;
+              if (currentThemeMode == ThemeMode.dark) {
+                MyApp.of(context)?.changeTheme(ThemeMode.light);
+              } else {
+                MyApp.of(context)?.changeTheme(ThemeMode.dark);
+              }
+            },
+          )
+        ],
       ),
       body: Container(
         margin: const EdgeInsets.all(20),
@@ -82,7 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text(
                       entry.key,
                       style: TextStyle(
-                        color: _index == index ? null : Colors.black
+                        color: _index == index ? null : Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.5)
                       ),
                     ),
                   );
