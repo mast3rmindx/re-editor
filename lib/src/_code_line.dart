@@ -261,48 +261,33 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
 
   @override
   void selectLine(int index) {
-    selectLines(index, index);
+    if (index >= 0 && index < codeLines.length) {
+      selection = CodeLineSelection.collapsed(index: index);
+    }
   }
 
   @override
   void selectLines(int base, int extent) {
-    final int start = min(base, extent);
-    final int end = max(base, extent);
-    if (start < 0 || end >= codeLines.length) {
-      return;
+    if (base >= 0 && base < codeLines.length && extent >= 0 && extent < codeLines.length) {
+      selection = CodeLineSelection(baseIndex: base, extentIndex: extent);
     }
-    selection = selection.copyWith(
-      baseIndex: base,
-      baseOffset: base > extent ? codeLines[end].length : 0,
-      extentIndex: extent,
-      extentOffset: base > extent ? 0 : codeLines[end].length,
-    );
-    makeCursorCenterIfInvisible();
   }
 
   @override
   void selectAll() {
-    selection = CodeLineSelection(
-      baseIndex: 0,
-      baseOffset: 0,
-      extentIndex: codeLines.length - 1,
-      extentOffset: codeLines.last.length
-    );
+    selection = CodeLineSelection(baseIndex: 0, extentIndex: codeLines.length - 1);
   }
 
   @override
   void cancelSelection() {
-    if (!selection.isCollapsed) {
-      selection = CodeLineSelection.fromPosition(
-        position: selection.extent
-      );
-      makeCursorCenterIfInvisible();
-    }
+    selection = CodeLineSelection.collapsed(index: selection.extentIndex);
   }
 
   @override
   void moveSelectionLinesUp() {
-    runRevocableOp(_moveSelectionLinesUp);
+    if (selection.baseIndex > 0) {
+      selection = CodeLineSelection(baseIndex: selection.baseIndex - 1, extentIndex: selection.extentIndex - 1);
+    }
   }
 
   @override
