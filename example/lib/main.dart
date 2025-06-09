@@ -4,13 +4,30 @@ import 'package:re_editor_exmaple/editor_autocomplete.dart';
 import 'package:re_editor_exmaple/editor_basic_field.dart';
 import 'package:re_editor_exmaple/editor_json.dart';
 import 'package:re_editor_exmaple/editor_large_text.dart';
+import 'package:re_editor/re_editor.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+
+  static _MyAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void changeTheme(ThemeMode themeMode) {
+    setState(() {
+      _themeMode = themeMode;
+    });
+  }
 
   // This widget is the root of your application.
   @override
@@ -22,6 +39,13 @@ class MyApp extends StatelessWidget {
           primary: Color.fromARGB(255, 255, 140, 0),
         )
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.blue, // Or any other distinct color
+        )
+      ),
+      themeMode: _themeMode,
       home: const MyHomePage(title: 'Re-Editor Demo Page'),
     );
   }
@@ -52,6 +76,7 @@ class _MyHomePageState extends State<MyHomePage> {
     'Json Editor': JsonEditor(),
     'Auto Complete': AutoCompleteEditor(),
     'Large Text': LargeTextEditor(),
+    'Native Context Menu': NativeContextMenuExamplePage(),
   };
 
   int _index = 0;
@@ -62,6 +87,19 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.brightness_4), // Icon for theme toggle
+            onPressed: () {
+              final currentThemeMode = MyApp.of(context)?._themeMode ?? ThemeMode.system;
+              if (currentThemeMode == ThemeMode.dark) {
+                MyApp.of(context)?.changeTheme(ThemeMode.light);
+              } else {
+                MyApp.of(context)?.changeTheme(ThemeMode.dark);
+              }
+            },
+          )
+        ],
       ),
       body: Container(
         margin: const EdgeInsets.all(20),
@@ -80,7 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text(
                       entry.key,
                       style: TextStyle(
-                        color: _index == index ? null : Colors.black
+                        color: _index == index ? null : Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.5)
                       ),
                     ),
                   );
@@ -100,6 +138,29 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         )
       ),
+    );
+  }
+}
+
+class NativeContextMenuExamplePage extends StatelessWidget {
+  const NativeContextMenuExamplePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CodeEditor(
+      controller: CodeLineEditingController.fromText(
+        '''
+Press and hold (or right-click) to see the native context menu.
+This example demonstrates the useNativeContextMenu: true feature.
+
+Try selecting some text:
+- Cut
+- Copy
+- Paste
+        '''
+      ),
+      useNativeContextMenu: true,
+      wordWrap: true, // Enable word wrap for better readability of sample text
     );
   }
 }
