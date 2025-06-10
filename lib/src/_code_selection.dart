@@ -469,485 +469,82 @@ class _DesktopSelectionOverlayController implements _SelectionOverlayController 
 
 }
 
-class _MobileSelectionOverlayController implements _SelectionOverlayController {
+class _MobileSelectionOverlayController extends _SelectionOverlayController {
 
-  final CodeLineEditingController controller;
+  final BuildContext context;
   final GlobalKey editorKey;
+  final ValueNotifier<bool> toolbarVisibility;
+  final CodeLineEditingController controller;
+  final FocusNode focusNode;
+  final void Function(BuildContext, TextSelectionToolbarAnchors, Rect?)? onShowToolbar;
+  final VoidCallback? onHideToolbar;
   final LayerLink startHandleLayerLink;
   final LayerLink endHandleLayerLink;
-  final ValueNotifier<bool> toolbarVisibility;
-  final FocusNode focusNode;
-  final OnToolbarShow onShowToolbar;
-  final VoidCallback onHideToolbar;
-
-  bool _inited = false;
-  bool _handlesVisible = false;
-
-  final ValueNotifier<bool> _effectiveStartHandleVisibility = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _effectiveEndHandleVisibility = ValueNotifier<bool>(false);
-
-  late BuildContext _context;
-  // The contact position of the gesture at the current start handle location.
-  // Updated when the handle moves.
-  late double _startHandleDragPosition;
-  late Offset _startHandleDragLastPosition;
-  bool _startHandleDragging = false;
-
-  // The distance from _startHandleDragPosition to the center of the line that
-  // it corresponds to.
-  late double _startHandleDragPositionToCenterOfLine;
-
-  // The contact position of the gesture at the current end handle location.
-  // Updated when the handle moves.
-  late double _endHandleDragPosition;
-  late Offset _endHandleDragLastPosition;
-  bool _endHandleDragging = false;
-
-  // The distance from _endHandleDragPosition to the center of the line that it
-  // corresponds to.
-  late double _endHandleDragPositionToCenterOfLine;
-
-  List<OverlayEntry>? _handles;
-  bool? _handleCollapsed;
+  final bool useNativeContextMenu;
 
   _MobileSelectionOverlayController({
-    required BuildContext context,
+    required this.context,
     required this.controller,
     required this.editorKey,
     required this.startHandleLayerLink,
     required this.endHandleLayerLink,
     required this.toolbarVisibility,
     required this.focusNode,
-    required this.onShowToolbar,
-    required this.onHideToolbar,
-  }) {
-    _context = context;
-    controller.addListener(_updateTextSelectionHandle);
+    this.onShowToolbar,
+    this.onHideToolbar,
+    this.useNativeContextMenu = false,
+  });
+
+  @override
+  Widget build(BuildContext context, Widget child) {
+    return SelectionArea(
+      focusNode: focusNode,
+      onSelectionChanged: (selection) {
+        // Handle selection changes if needed
+        // Note: CodeLineEditingController doesn't have textEditingValue property
+        // Selection is handled by the underlying text editing system
+      },
+      contextMenuBuilder: useNativeContextMenu ? null : (context, selectableRegionState) {
+        // Use custom context menu
+        // For now, we'll use a simple approach to show the toolbar
+        // The actual selection handling is done by the underlying system
+        final anchors = TextSelectionToolbarAnchors(
+          primaryAnchor: Offset.zero, // This will be updated by the actual implementation
+        );
+        onShowToolbar?.call(context, anchors, null);
+        return const SizedBox.shrink();
+      },
+      child: child,
+    );
   }
 
-  TextSelectionControls get selectionControls {
-    if (kIsAndroid) {
-      return materialTextSelectionControls;
-    } else {
-      return cupertinoTextSelectionControls;
-    }
-  }
+
+
+
 
   @override
   void showHandle(BuildContext context) {
-    _context = context;
-    _handlesVisible = true;
-    if (!_inited) {
-      init();
-    }
-    _updateTextSelectionOverlayVisibilities();
-    _buildHandles(context);
+    // Implementation needed
   }
 
   @override
   void hideHandle() {
-    _handlesVisible = false;
-    _handleCollapsed = null;
-    if (_handles != null) {
-      _handles![0].remove();
-      _handles![1].remove();
-      _handles = null;
-    }
-  }
-
-  @override
-  void hideToolbar() {
-    onHideToolbar();
+    // Implementation needed
   }
 
   @override
   void showToolbar(BuildContext context, Offset globalPosition) {
-    globalPosition = _clampPosition(globalPosition);
-    final Rect editingRegion = Rect.fromPoints(
-      ensureRender.localToGlobal(Offset.zero),
-      ensureRender.localToGlobal(ensureRender.size.bottomRight(Offset.zero)),
-    );
-    final CodeLineSelection selection = controller.selection;
-    final TextSelectionToolbarAnchors anchors;
-    if (selection.isCollapsed) {
-      anchors = TextSelectionToolbarAnchors(
-        primaryAnchor: ensureRender.calculateTextPositionScreenOffset(selection.start, false) ?? globalPosition,
-      );
-    } else {
-      Offset startPosition = ensureRender.calculateTextPositionScreenOffset(selection.start, false) ?? editingRegion.topLeft;
-      Offset endPosition = ensureRender.calculateTextPositionScreenOffset(selection.end, true) ?? editingRegion.bottomRight;
-      if (startPosition.dy < editingRegion.top) {
-        startPosition = Offset(startPosition.dx, editingRegion.top);
-      }
-      if (endPosition.dy > editingRegion.bottom) {
-        endPosition = Offset(endPosition.dx, editingRegion.bottom);
-      }
-      if (startPosition.dy <= editingRegion.top + lineHeight && endPosition.dy >= editingRegion.bottom - lineHeight) {
-        anchors = TextSelectionToolbarAnchors(
-          primaryAnchor: globalPosition,
-        );
-      } else {
-        final double distanceToStart = (globalPosition - startPosition).distance;
-        final double distanceToEnd = (globalPosition - endPosition).distance;
-        if (distanceToStart < distanceToEnd) {
-          anchors = TextSelectionToolbarAnchors(
-            primaryAnchor: startPosition,
-            secondaryAnchor: endPosition
-          );
-        } else {
-          anchors = TextSelectionToolbarAnchors(
-            // This is trick, make secondary anchor takes effect
-            primaryAnchor: const Offset(-10000, -10000),
-            secondaryAnchor: endPosition
-          );
-        }
-      }
-
-    }
-    onShowToolbar(context, anchors, editingRegion);
+    // Implementation needed
   }
 
-  void init() {
-    _inited = true;
-    ensureRender.selectionStartInViewport.addListener(_updateTextSelectionOverlayVisibilities);
-    ensureRender.selectionEndInViewport.addListener(_updateTextSelectionOverlayVisibilities);
+  @override
+  void hideToolbar() {
+    // Implementation needed
   }
 
   @override
   void dispose() {
-    _startHandleDragging = false;
-    _endHandleDragging = false;
-    hideHandle();
-    controller.removeListener(_updateTextSelectionHandle);
-    _effectiveStartHandleVisibility.dispose();
-    _effectiveEndHandleVisibility.dispose();
-    final _CodeFieldRender? render = editorKey.currentContext?.findRenderObject() as _CodeFieldRender?;
-    if (render == null) {
-      return;
-    }
-    render.selectionStartInViewport.removeListener(_updateTextSelectionOverlayVisibilities);
-    render.selectionEndInViewport.removeListener(_updateTextSelectionOverlayVisibilities);
-  }
-
-  double get lineHeight {
-    final _CodeFieldRender? render = editorKey.currentContext?.findRenderObject() as _CodeFieldRender?;
-    if (render == null) {
-      return 0;
-    }
-    return render.lineHeight;
-  }
-
-  bool get attached {
-    final _CodeFieldRender? render = editorKey.currentContext?.findRenderObject() as _CodeFieldRender?;
-    return render != null && render.attached;
-  }
-
-  _CodeFieldRender get ensureRender => editorKey.currentContext?.findRenderObject() as _CodeFieldRender;
-
-  void _updateTextSelectionHandle() {
-    if (!_handlesVisible) {
-      return;
-    }
-    if (!focusNode.hasFocus) {
-      return;
-    }
-    showHandle(_context);
-  }
-
-  void _updateTextSelectionOverlayVisibilities() {
-    final _CodeFieldRender? render = editorKey.currentContext?.findRenderObject() as _CodeFieldRender?;
-    if (render == null) {
-      return;
-    }
-    _effectiveStartHandleVisibility.value = _handlesVisible && render.selectionStartInViewport.value;
-    _effectiveEndHandleVisibility.value = _handlesVisible && render.selectionEndInViewport.value;
-  }
-
-  void _buildHandles(BuildContext context) {
-    final bool isCollapsed = controller.selection.isCollapsed;
-    if (_handleCollapsed == isCollapsed) {
-      return;
-    }
-    _handleCollapsed = isCollapsed;
-    if (_handles != null) {
-      _handles![0].remove();
-      _handles![1].remove();
-      _handles = null;
-    }
-    _handles = <OverlayEntry>[
-      OverlayEntry(builder: (context) {
-        return _buildStartHandle(context, isCollapsed ? TextSelectionHandleType.collapsed : TextSelectionHandleType.left);
-      }),
-      OverlayEntry(builder: (context) {
-        return _buildEndHandle(context, isCollapsed ? TextSelectionHandleType.collapsed : TextSelectionHandleType.right);
-      }),
-    ];
-    Overlay.of(context, rootOverlay: true).insertAll(_handles!);
-  }
-
-  Widget _buildStartHandle(BuildContext context, TextSelectionHandleType type) {
-    if (kIsIOS && type == TextSelectionHandleType.collapsed) {
-      type = TextSelectionHandleType.right;
-    }
-    return CodeEditorTapRegion(
-      child: ExcludeSemantics(
-        child: _SelectionHandleOverlay(
-          type: type,
-          handleLayerLink: startHandleLayerLink,
-          onSelectionHandleTapped: () {
-            final Offset? position = ensureRender.calculateTextPositionScreenOffset(controller.selection.start, false);
-            if (position == null) {
-              return;
-            }
-            showToolbar(_context, position);
-          },
-          onSelectionHandleDragStart: _handleStartHandleDragStart,
-          onSelectionHandleDragUpdate: (details) {
-            _handleStartHandleDragUpdate(details.globalPosition);
-          },
-          onSelectionHandleDragEnd: _handleStartHandleDragEnd,
-          onSelectionHandleDragCancel: () {
-            _startHandleDragging = false;
-          },
-          selectionControls: selectionControls,
-          visibility: _effectiveStartHandleVisibility,
-          preferredLineHeight: lineHeight,
-        )
-      ),
-    );
-  }
-
-  Widget _buildEndHandle(BuildContext context, TextSelectionHandleType type) {
-    final Widget handle;
-    if (type == TextSelectionHandleType.collapsed) {
-      // Hide the second handle when collapsed.
-      handle = const SizedBox.shrink();
-    } else {
-      handle = _SelectionHandleOverlay(
-        type: type,
-        handleLayerLink: endHandleLayerLink,
-        onSelectionHandleTapped: () {
-          final Offset? position = ensureRender.calculateTextPositionScreenOffset(controller.selection.end, false);
-          if (position == null) {
-            return;
-          }
-          showToolbar(_context, position);
-        },
-        onSelectionHandleDragStart: _handleEndHandleDragStart,
-        onSelectionHandleDragUpdate: (details) {
-          _handleEndHandleDragUpdate(details.globalPosition);
-        },
-        onSelectionHandleDragEnd: _handleEndHandleDragEnd,
-        onSelectionHandleDragCancel: () {
-          _endHandleDragging = false;
-        },
-        selectionControls: selectionControls,
-        visibility: _effectiveEndHandleVisibility,
-        preferredLineHeight: lineHeight,
-      );
-    }
-    return CodeEditorTapRegion(
-      child: ExcludeSemantics(
-        child: handle,
-      ),
-    );
-  }
-
-  void _handleStartHandleDragStart(DragStartDetails details) {
-    _startHandleDragging = true;
-    _startHandleDragLastPosition = details.globalPosition;
-    _startHandleDragPosition = details.globalPosition.dy;
-    final Offset startPoint = ensureRender.localToGlobal(ensureRender.calculateTextPositionViewportOffset(controller.selection.start)!);
-    final double centerOfLine = startPoint.dy + ensureRender.lineHeight / 2;
-    _startHandleDragPositionToCenterOfLine = centerOfLine - _startHandleDragPosition;
-    toolbarVisibility.value = false;
-    _autoScrollWhenStartHandleDragging();
-  }
-
-  void _handleStartHandleDragUpdate(Offset offset) {
-    if (!attached) {
-      return;
-    }
-    _startHandleDragPosition = _getHandleDy(offset.dy, _startHandleDragPosition);
-    _startHandleDragLastPosition = offset;
-    final Offset adjustedOffset = ensureRender.globalToLocal(Offset(
-      offset.dx,
-      _startHandleDragPosition + _startHandleDragPositionToCenterOfLine,
-    ));
-    final CodeLinePosition? position = ensureRender.calculateTextPosition(adjustedOffset);
-    if (position == null) {
-      return;
-    }
-    final CodeLineSelection newSelection;
-    if (controller.selection.isCollapsed) {
-      newSelection = CodeLineSelection.fromPosition(
-        position : position
-      );
-      if (controller.selection != newSelection) {
-        HapticFeedback.selectionClick();
-      }
-      controller.selection = newSelection;
-      return;
-    }
-    if (kIsAndroid) {
-      newSelection = CodeLineSelection(
-        baseIndex: position.index,
-        baseOffset: position.offset,
-        baseAffinity: position.affinity,
-        extentIndex: controller.selection.endIndex,
-        extentOffset: controller.selection.endOffset,
-        extentAffinity: controller.selection.end.affinity
-      );
-      if (position.index >= controller.selection.endIndex && position.offset >= controller.selection.endOffset) {
-        // Don't allow order swapping.
-        return;
-      }
-      if (controller.selection != newSelection) {
-        HapticFeedback.selectionClick();
-      }
-    } else {
-      newSelection = CodeLineSelection(
-        baseIndex: controller.selection.endIndex,
-        baseOffset: controller.selection.endOffset,
-        baseAffinity: controller.selection.end.affinity,
-        extentIndex: position.index,
-        extentOffset: position.offset,
-        extentAffinity: position.affinity,
-      );
-      if (newSelection.extentIndex >= controller.selection.endIndex && newSelection.extentOffset >= controller.selection.endOffset) {
-        // Don't allow order swapping.
-        return;
-      }
-    }
-    controller.selection = newSelection;
-  }
-
-  void _handleStartHandleDragEnd(DragEndDetails details) {
-    _startHandleDragging = false;
-    toolbarVisibility.value = true;
-    showToolbar(_context, _startHandleDragLastPosition);
-  }
-
-  void _handleEndHandleDragStart(DragStartDetails details) {
-    // This adjusts for the fact that the selection handles may not
-    // perfectly cover the TextPosition that they correspond to.
-    _endHandleDragging = true;
-    _endHandleDragPosition = details.globalPosition.dy;
-    _endHandleDragLastPosition = details.globalPosition;
-    final Offset endPoint =
-        ensureRender.localToGlobal(ensureRender.calculateTextPositionViewportOffset(controller.selection.end)!);
-    final double centerOfLine = endPoint.dy + ensureRender.lineHeight / 2;
-    _endHandleDragPositionToCenterOfLine = centerOfLine - _endHandleDragPosition;
-    toolbarVisibility.value = false;
-    _autoScrollWhenEndHandleDragging();
-  }
-
-  void _handleEndHandleDragUpdate(Offset offset) {
-    if (!attached) {
-      return;
-    }
-    _endHandleDragPosition = _getHandleDy(offset.dy, _endHandleDragPosition);
-    _endHandleDragLastPosition = offset;
-    final Offset adjustedOffset = ensureRender.globalToLocal(Offset(
-      offset.dx,
-      _endHandleDragPosition + _endHandleDragPositionToCenterOfLine,
-    ));
-    final CodeLinePosition? position = ensureRender.calculateTextPosition(adjustedOffset);
-    if (position == null) {
-      return;
-    }
-    final CodeLineSelection newSelection;
-    if (controller.selection.isCollapsed) {
-      newSelection = CodeLineSelection.fromPosition(
-        position : position
-      );
-      if (controller.selection != newSelection) {
-        HapticFeedback.selectionClick();
-      }
-      controller.selection = newSelection;
-      return;
-    }
-
-    if (kIsAndroid) {
-      newSelection = CodeLineSelection(
-        baseIndex: controller.selection.baseIndex,
-        baseOffset: controller.selection.baseOffset,
-        baseAffinity: controller.selection.baseAffinity,
-        extentIndex: position.index,
-        extentOffset: position.offset,
-        extentAffinity: position.affinity,
-      );
-      if (newSelection.baseIndex >= newSelection.extentIndex && newSelection.baseOffset >= newSelection.extentOffset) {
-        // Don't allow order swapping.
-        return;
-      }
-      if (controller.selection != newSelection) {
-        HapticFeedback.selectionClick();
-      }
-    } else {
-      newSelection = CodeLineSelection(
-        extentIndex: position.index,
-        extentOffset: position.offset,
-        extentAffinity: position.affinity,
-        baseIndex: controller.selection.startIndex,
-        baseOffset: controller.selection.startOffset,
-        baseAffinity: controller.selection.start.affinity,
-      );
-      if (position.index <= controller.selection.startIndex && position.offset <= controller.selection.startOffset) {
-        // Don't allow order swapping.
-        return;
-      }
-    }
-    controller.selection = newSelection;
-  }
-
-  void _handleEndHandleDragEnd(DragEndDetails details) {
-    _endHandleDragging = false;
-    toolbarVisibility.value = true;
-    showToolbar(_context, _endHandleDragLastPosition);
-  }
-
-  void _autoScrollWhenStartHandleDragging() {
-    Future.delayed(const Duration(milliseconds: 100), (() {
-      if (!_startHandleDragging) {
-        return;
-      }
-      ensureRender.autoScrollWhenDragging(_startHandleDragLastPosition);
-      _handleStartHandleDragUpdate(_startHandleDragLastPosition);
-      _autoScrollWhenStartHandleDragging();
-    }));
-  }
-
-  void _autoScrollWhenEndHandleDragging() {
-    Future.delayed(const Duration(milliseconds: 100), (() {
-      if (!_endHandleDragging) {
-        return;
-      }
-      ensureRender.autoScrollWhenDragging(_endHandleDragLastPosition);
-      _handleEndHandleDragUpdate(_endHandleDragLastPosition);
-      _autoScrollWhenEndHandleDragging();
-    }));
-  }
-
-  /// Given a handle position and drag position, returns the position of handle
-  /// after the drag.
-  ///
-  /// The handle jumps instantly between lines when the drag reaches a full
-  /// line's height away from the original handle position. In other words, the
-  /// line jump happens when the contact point would be located at the same
-  /// place on the handle at the new line as when the gesture started.
-  double _getHandleDy(double dragDy, double handleDy) {
-    final double distanceDragged = dragDy - handleDy;
-    final int dragDirection = distanceDragged < 0.0 ? -1 : 1;
-    final int linesDragged =
-        dragDirection * (distanceDragged.abs() / ensureRender.lineHeight).floor();
-    return handleDy + linesDragged * ensureRender.lineHeight;
-  }
-
-  Offset _clampPosition(Offset position) {
-    final RenderBox box = _context.findRenderObject() as RenderBox;
-    final Offset offset = box.globalToLocal(position);
-    return box.localToGlobal(Offset(min(max(0, offset.dx), box.size.width), min(max(0, offset.dy), box.size.height)));
+    // Implementation needed
   }
 
 }

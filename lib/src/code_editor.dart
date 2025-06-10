@@ -383,10 +383,11 @@ class _CodeEditorState extends State<CodeEditor> {
       endHandleLayerLink: _endHandleLayerLink,
       toolbarVisibility: _effectiveToolbarVisibility,
       focusNode: _focusNode,
+      useNativeContextMenu: widget.useNativeContextMenu,
       onShowToolbar: (context, anchors, renderRect) {
         if (!widget.useNativeContextMenu) {
           widget.toolbarController?.show(
-            context: _editorKey.currentContext ?? context,
+            context: context,
             controller: _editingController,
             anchors: anchors,
             renderRect: renderRect,

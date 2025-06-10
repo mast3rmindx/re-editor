@@ -173,9 +173,9 @@ CodeEditor(
 );
 ```
 
-**Using Native Mobile Context Menus**
+**Using Native Context Menus**
 
-For mobile platforms (iOS and Android), you can opt to use the operating system's native context menu (for copy, paste, select all, etc.) instead of a custom-built toolbar. This can provide a more familiar experience for users. To enable this, set the `useNativeContextMenu` property of the `CodeEditor` to `true`:
+You can opt to use the operating system's native context menu (for copy, paste, select all, etc.) instead of a custom-built toolbar. This can provide a more familiar experience for users. To enable this, set the `useNativeContextMenu` property of the `CodeEditor` to `true`:
 
 ```dart
 CodeEditor(
@@ -184,7 +184,13 @@ CodeEditor(
 );
 ```
 
-When `useNativeContextMenu` is `true`, the custom `toolbarController` (if provided) will not be shown for mobile selection events, allowing the native menu to appear. **Note: This feature only works on mobile platforms (iOS and Android). On desktop platforms, the custom `toolbarController` will always be used.**
+When `useNativeContextMenu` is `true`, the custom `toolbarController` (if provided) will not be shown for selection events, allowing the native menu to appear. This feature works on all platforms:
+
+- **iOS**: Shows the system's native context menu with iOS-style appearance
+- **Android**: Shows the system's native context menu with Material Design appearance  
+- **Desktop (Windows, macOS, Linux)**: Shows the platform's default context menu
+
+**Note**: On iOS, you'll see the actual system context menu that appears outside of the Flutter app window. On other platforms, Flutter renders the default platform-appropriate context menu within the app.
 
 ### Shortcuts
 

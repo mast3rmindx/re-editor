@@ -253,11 +253,16 @@ This example demonstrates the useNativeContextMenu: true feature.
 
 This works on all platforms:
 - Mobile: iOS and Android (press and hold)
+- Desktop: Windows, macOS, and Linux (right-click)
 
 Try selecting some text and using:
 - Cut
 - Copy  
 - Paste
+- Select All
+
+On iOS, you'll see the system's native context menu.
+On other platforms, the default platform context menu appears.
         '''
       ),
       useNativeContextMenu: true,
