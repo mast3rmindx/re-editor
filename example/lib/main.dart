@@ -248,12 +248,15 @@ class NativeContextMenuExamplePage extends StatelessWidget {
     return CodeEditor(
       controller: CodeLineEditingController.fromText(
         '''
-Press and hold (or right-click) to see the native context menu.
+Press and hold (mobile) to see the native context menu.
 This example demonstrates the useNativeContextMenu: true feature.
 
-Try selecting some text:
+This works on all platforms:
+- Mobile: iOS and Android (press and hold)
+
+Try selecting some text and using:
 - Cut
-- Copy
+- Copy  
 - Paste
         '''
       ),

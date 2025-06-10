@@ -184,7 +184,7 @@ CodeEditor(
 );
 ```
 
-When `useNativeContextMenu` is `true`, the custom `toolbarController` (if provided) will not be shown for mobile selection events, allowing the native menu to appear. For desktop, the behavior of `toolbarController` remains unchanged.
+When `useNativeContextMenu` is `true`, the custom `toolbarController` (if provided) will not be shown for mobile selection events, allowing the native menu to appear. **Note: This feature only works on mobile platforms (iOS and Android). On desktop platforms, the custom `toolbarController` will always be used.**
 
 ### Shortcuts
 

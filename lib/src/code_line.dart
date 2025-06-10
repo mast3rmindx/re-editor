@@ -420,57 +420,6 @@ class CodeLine {
   }
 
   @override
-  void insertText(String text, CodeLinePosition position) {
-    runRevocableOp(() {
-      final CodeLineSelection insertionPoint = CodeLineSelection.fromPosition(position: position);
-      _replaceRange(text, insertionPoint);
-    });
-  }
-
-  @override
-  void addLine(String text) {
-    runRevocableOp(() {
-      final List<CodeLine> linesList = codeLines.toList();
-      linesList.add(CodeLine(text));
-      final newCodeLines = CodeLines.of(linesList);
-      value = value.copyWith(
-        codeLines: newCodeLines,
-        selection: CodeLineSelection.collapsed(index: newCodeLines.length - 1, offset: 0)
-      );
-    });
-  }
-
-  @override
-  void insertLine(int lineIndex, String text) {
-    final int currentLength = codeLines.length;
-    if (lineIndex < 0 || lineIndex > currentLength) {
-      throw RangeError.range(lineIndex, 0, currentLength, 'lineIndex', 'Invalid line index');
-    }
-    if (lineIndex == currentLength) {
-      // Effectively the same as addLine if inserting at the very end
-      runRevocableOp(() {
-        final List<CodeLine> linesList = codeLines.toList();
-        linesList.add(CodeLine(text));
-        final newCodeLines = CodeLines.of(linesList);
-        value = value.copyWith(
-          codeLines: newCodeLines,
-          selection: CodeLineSelection.collapsed(index: newCodeLines.length - 1, offset: 0)
-        );
-      });
-    } else {
-      runRevocableOp(() {
-        final List<CodeLine> linesList = codeLines.toList();
-        linesList.insert(lineIndex, CodeLine(text));
-        final newCodeLines = CodeLines.of(linesList);
-        value = value.copyWith(
-          codeLines: newCodeLines,
-          selection: CodeLineSelection.collapsed(index: lineIndex, offset: 0)
-        );
-      });
-    }
-  }
-
-  @override
   int get hashCode => Object.hash(text, chunks);
 
   int get length => text.length;

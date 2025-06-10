@@ -301,6 +301,7 @@ class _CodeSelectionGestureDetectorState extends State<_CodeSelectionGestureDete
     if (!render.size.contains(render.globalToLocal(details.globalPosition))) {
       return;
     }
+    
     widget.controller.clearComposing();
     widget.selectionOverlayController.showToolbar(context, details.globalPosition);
   }
@@ -434,7 +435,7 @@ class _DesktopSelectionOverlayController implements _SelectionOverlayController 
 
   const _DesktopSelectionOverlayController({
     required this.onShowToolbar,
-    required this.onHideToolbar
+    required this.onHideToolbar,
   });
 
   @override
@@ -455,6 +456,8 @@ class _DesktopSelectionOverlayController implements _SelectionOverlayController 
     if (position == null) {
       return;
     }
+    
+    // Always show the custom toolbar on desktop platforms
     onShowToolbar(context, TextSelectionToolbarAnchors(
       primaryAnchor: position
     ), null);

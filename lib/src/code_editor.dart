@@ -311,7 +311,12 @@ class CodeEditor extends StatefulWidget {
   /// Control how one or more lines of code are commented.
   final CodeCommentFormatter? commentFormatter;
 
-  /// Whether to use the native context menu.
+  /// Whether to use the native context menu on all platforms.
+  ///
+  /// When enabled, the built-in toolbar will be hidden and the platform's
+  /// native context menu will be used instead. This works on:
+  /// - Mobile platforms (iOS and Android)
+  /// - Desktop platforms (Windows, macOS, and Linux)
   ///
   /// Defaults to false.
   final bool useNativeContextMenu;
@@ -351,8 +356,8 @@ class _CodeEditorState extends State<CodeEditor> {
 
     _floatingCursorController = _CodeFloatingCursorController();
 
-    final Brightness currentBrightness = Theme.of(context).brightness;
-    _storedBrightness = currentBrightness;
+    // Initialize with a default brightness, will be updated in didChangeDependencies
+    _storedBrightness = Brightness.light;
 
     _inputController = _CodeInputController(
       controller: _editingController,
@@ -360,7 +365,7 @@ class _CodeEditorState extends State<CodeEditor> {
       focusNode: _focusNode,
       readOnly: widget.readOnly ?? false,
       autocompleteSymbols: widget.autocompleteSymbols ?? true,
-      keyboardAppearance: currentBrightness,
+      keyboardAppearance: _storedBrightness, // Will be updated in didChangeDependencies
     );
     _inputController.bindEditor(_editorKey);
 

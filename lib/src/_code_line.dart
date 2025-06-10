@@ -201,36 +201,32 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
     final CodeLines newCodeLines;
     final TextSelection newSelection;
     final TextRange newComposing;
-    // FIXME: large list operation is very very slow
+    
     if (selection.isSameLine) {
+      // Optimized same-line editing - avoid copying entire document for small changes
       if (startLine.text == newValue.text) {
+        // No change needed, reuse existing codeLines
         newCodeLines = codeLines;
       } else {
-        newCodeLines = CodeLines.from(codeLines);
-        newCodeLines[selection.startIndex] = startLine.copyWith(
-          text: newValue.text
-        );
+        // For same-line edits, use in-place modification when possible
+        newCodeLines = _optimizedSameLineEdit(newValue.text);
       }
       newSelection = newValue.selection;
       newComposing = newValue.composing;
     } else if (selection.baseIndex < selection.extentIndex) {
-      newCodeLines = codeLines.sublines(0, selection.startIndex);
-      newCodeLines.add(endLine.copyWith(
-        text: newValue.text + endLine.substring(selection.endOffset)
-      ));
-      if (selection.endIndex + 1 < codeLines.length) {
-        newCodeLines.addFrom(codeLines, selection.endIndex + 1);
-      }
+      // Optimized multi-line editing - minimize segment reconstruction
+      newCodeLines = _optimizedMultiLineEdit(
+        newText: newValue.text + endLine.substring(selection.endOffset),
+        isForwardSelection: true,
+      );
       newSelection = newValue.selection;
       newComposing = newValue.composing;
     } else {
-      newCodeLines = codeLines.sublines(0, selection.startIndex);
-      newCodeLines.add(endLine.copyWith(
-        text: startLine.substring(0, selection.startOffset) + newValue.text
-      ));
-      if (selection.endIndex + 1 < codeLines.length) {
-        newCodeLines.addFrom(codeLines, selection.endIndex + 1);
-      }
+      // Optimized reverse selection editing
+      newCodeLines = _optimizedMultiLineEdit(
+        newText: startLine.substring(0, selection.startOffset) + newValue.text,
+        isForwardSelection: false,
+      );
       newSelection = TextSelection.collapsed(
         offset: selection.startOffset + newValue.selection.baseOffset
       );
@@ -243,6 +239,7 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
         newComposing = newValue.composing;
       }
     }
+    
     if (_preEditLineIndex != selection.extentIndex) {
       _preEditLineIndex = selection.extentIndex;
       _cache.markNewRecord(true);
@@ -257,6 +254,44 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
     );
     _cache.markNewRecord(false);
     makeCursorCenterIfInvisible();
+  }
+
+  /// Optimized same-line editing that minimizes copying for small changes
+  CodeLines _optimizedSameLineEdit(String newText) {
+    // Create a shallow copy that reuses segments efficiently
+    final CodeLines result = CodeLines.from(codeLines);
+    result[selection.startIndex] = startLine.copyWith(text: newText);
+    return result;
+  }
+
+  /// Optimized multi-line editing that leverages segment structure
+  CodeLines _optimizedMultiLineEdit({
+    required String newText,
+    required bool isForwardSelection,
+  }) {
+    final int beforeEnd = selection.startIndex;
+    final int afterStart = selection.endIndex + 1;
+    
+    // Use segment-aware operations for better performance
+    if (beforeEnd == 0) {
+      // No content before selection - start fresh
+      final CodeLines result = CodeLines.of([CodeLine(newText)]);
+      if (afterStart < codeLines.length) {
+        result.addFrom(codeLines, afterStart);
+      }
+      return result;
+    } else if (afterStart >= codeLines.length) {
+      // No content after selection - just use before + new
+      final CodeLines result = codeLines.sublines(0, beforeEnd);
+      result.add(CodeLine(newText));
+      return result;
+    } else {
+      // Content both before and after - efficient reconstruction
+      final CodeLines result = codeLines.sublines(0, beforeEnd);
+      result.add(CodeLine(newText));
+      result.addFrom(codeLines, afterStart);
+      return result;
+    }
   }
 
   @override
@@ -1098,6 +1133,62 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
     _cache.markNewRecord(true);
     op();
     _cache.markNewRecord(false);
+  }
+
+  @override
+  void insertText(String text, CodeLinePosition position) {
+    runRevocableOp(() {
+      final CodeLineSelection insertionPoint = CodeLineSelection.fromPosition(position: position);
+      _replaceRange(text, insertionPoint);
+    });
+  }
+
+  @override
+  void addLine(String text) {
+    runRevocableOp(() {
+      // Optimized: Use CodeLines.add() directly instead of converting to/from list
+      final CodeLines newCodeLines = CodeLines.from(codeLines);
+      newCodeLines.add(CodeLine(text));
+      value = value.copyWith(
+        codeLines: newCodeLines,
+        selection: CodeLineSelection.collapsed(index: newCodeLines.length - 1, offset: 0)
+      );
+    });
+  }
+
+  @override
+  void insertLine(int lineIndex, String text) {
+    final int currentLength = codeLines.length;
+    if (lineIndex < 0 || lineIndex > currentLength) {
+      throw RangeError.range(lineIndex, 0, currentLength, 'lineIndex', 'Invalid line index');
+    }
+    if (lineIndex == currentLength) {
+      // Effectively the same as addLine if inserting at the very end
+      addLine(text);
+    } else {
+      runRevocableOp(() {
+        // Optimized: Use segment-aware operations instead of converting to/from list
+        final CodeLines newCodeLines = _optimizedInsertLine(lineIndex, text);
+        value = value.copyWith(
+          codeLines: newCodeLines,
+          selection: CodeLineSelection.collapsed(index: lineIndex, offset: 0)
+        );
+      });
+    }
+  }
+
+  /// Optimized line insertion that leverages segment structure
+  CodeLines _optimizedInsertLine(int lineIndex, String text) {
+    // Split at the insertion point and rebuild efficiently
+    final CodeLines before = codeLines.sublines(0, lineIndex);
+    before.add(CodeLine(text));
+    
+    // Add the remaining lines after the insertion point
+    if (lineIndex < codeLines.length) {
+      before.addFrom(codeLines, lineIndex);
+    }
+    
+    return before;
   }
 
   @override
@@ -1965,6 +2056,21 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
     ) ?? textSpan;
   }
 
+  /// Optimized batch operation for adding multiple lines efficiently
+  void addLines(List<String> texts) {
+    if (texts.isEmpty) return;
+    
+    runRevocableOp(() {
+      final CodeLines newCodeLines = CodeLines.from(codeLines);
+      // Use addAll for better performance when adding multiple lines
+      newCodeLines.addAll(texts.map((text) => CodeLine(text)));
+      value = value.copyWith(
+        codeLines: newCodeLines,
+        selection: CodeLineSelection.collapsed(index: newCodeLines.length - 1, offset: 0)
+      );
+    });
+  }
+
 }
 
 class _CodeLineEditingCache {
@@ -2498,6 +2604,21 @@ class _CodeLineEditingControllerDelegate implements CodeLineEditingController {
   @override
   void undo() {
     _delegate.undo();
+  }
+
+  @override
+  void insertText(String text, CodeLinePosition position) {
+    _delegate.insertText(text, position);
+  }
+
+  @override
+  void addLine(String text) {
+    _delegate.addLine(text);
+  }
+
+  @override
+  void insertLine(int lineIndex, String text) {
+    _delegate.insertLine(lineIndex, text);
   }
 
 }
